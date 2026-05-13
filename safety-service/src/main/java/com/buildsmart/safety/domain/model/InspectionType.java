@@ -1,0 +1,14 @@
+package com.buildsmart.safety.domain.model;
+
+public enum InspectionType {
+    FIRE_SAFETY,
+    SCAFFOLDING_SAFETY,
+    ELECTRICAL_SAFETY,
+    EQUIPMENT_INSPECTION,
+    HOUSEKEEPING,
+    HAZARDOUS_MATERIALS,
+    FIRST_AID_READINESS,
+    EXCAVATION_SAFETY,
+    EMERGENCY_EXIT_CHECK,
+    PPE_COMPLIANCE
+}

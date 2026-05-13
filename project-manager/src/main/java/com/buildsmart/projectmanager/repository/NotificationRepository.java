@@ -1,0 +1,25 @@
+package com.buildsmart.projectmanager.repository;
+
+import com.buildsmart.projectmanager.entity.Notification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
+    
+    Optional<Notification> findByNotificationId(String notificationId);
+    
+    List<Notification> findByUserIdOrderByCreatedAtDesc(String userId);
+    List<Notification> findByUserIdAndIsReadFalseOrderByCreatedAtDesc(String userId);
+    long countByUserIdAndIsReadFalse(String userId);
+    @Modifying
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.userId = :userId AND n.isRead = false")
+    int markAllAsReadForUser(String userId);
+    
+    List<Notification> findByNotificationToOrderByCreatedAtDesc(String notificationTo);
+    List<Notification> findByNotificationFromOrderByCreatedAtDesc(String notificationFrom);
+}

@@ -1,0 +1,2304 @@
+{
+  "info": {
+    "name": "BuildSmart - Safety Service Complete Test Suite",
+    "_postman_id": "buildsmart-safety-complete-v2",
+    "description": "Complete test suite for the BuildSmart Safety Service routed through the API Gateway at port 9090. Includes Auth (login for all roles), Project creation, Incidents, Inspections, and Notifications — with happy paths and every error/edge case handled by the service.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",        "value": "http://localhost:9090",  "description": "API Gateway base URL" },
+    { "key": "adminToken",     "value": "",                       "description": "Auto-set by the Admin Login request" },
+    { "key": "officerToken",   "value": "",                       "description": "Auto-set by the Safety Officer Login request" },
+    { "key": "managerToken",   "value": "",                       "description": "Auto-set by the Project Manager Login request" },
+    { "key": "token",          "value": "",                       "description": "Active token used by all requests — set this after login" },
+    { "key": "incidentId",     "value": "",                       "description": "Auto-set after Create Incident" },
+    { "key": "inspectionId",   "value": "",                       "description": "Auto-set after Create Inspection" },
+    { "key": "notificationId", "value": "",                       "description": "Auto-set after fetching notifications" },
+    { "key": "userId",         "value": "BSSO002",                "description": "Safety officer user ID for notification tests" },
+    { "key": "projectId",      "value": "",                       "description": "Auto-set after Create Project" },
+    { "key": "assignedTaskId", "value": "",                       "description": "Auto-set after Sync Tasks from PM — local safety DB task ID (e.g. SAT001)" },
+    { "key": "pmTaskId",       "value": "",                       "description": "Auto-set after Sync Tasks from PM — original PM service task ID" }
+  ],
+  "item": [
+
+    {
+      "name": "AUTH - Login",
+      "description": "Login requests for all roles. Run the appropriate one first and copy the token into the 'token' collection variable.",
+      "item": [
+
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('adminToken', json.token);",
+                  "    pm.collectionVariables.set('token', json.token);",
+                  "    console.log('Admin token set.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@buildsmart.com\",\n  \"password\": \"Admin@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login with ADMIN credentials. Token is auto-saved to adminToken and token variables."
+          }
+        },
+
+        {
+          "name": "Login as Safety Officer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('officerToken', json.token);",
+                  "    pm.collectionVariables.set('token', json.token);",
+                  "    console.log('Safety Officer token set.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"officer@buildsmart.com\",\n  \"password\": \"Officer@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login with SAFETY_OFFICER credentials. Token is auto-saved to officerToken and token variables."
+          }
+        },
+
+        {
+          "name": "Login as Project Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('managerToken', json.token);",
+                  "    pm.collectionVariables.set('token', json.token);",
+                  "    console.log('Project Manager token set.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@buildsmart.com\",\n  \"password\": \"Manager@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login with PROJECT_MANAGER credentials. Token is auto-saved to managerToken and token variables."
+          }
+        },
+
+        {
+          "name": "Login - Wrong Password (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@buildsmart.com\",\n  \"password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Expected: 401 Unauthorized — incorrect password."
+          }
+        },
+
+        {
+          "name": "Login - Non-Existent Email (404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody@buildsmart.com\",\n  \"password\": \"SomePass@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Expected: 404 Not Found — user does not exist."
+          }
+        },
+
+        {
+          "name": "Login - Missing Email Field (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"Admin@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Expected: 400 Bad Request — email is required."
+          }
+        },
+
+        {
+          "name": "Register - Create New User (Sign Up)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Safety Officer\",\n  \"email\": \"testofficer@buildsmart.com\",\n  \"password\": \"TestPass@123\",\n  \"role\": \"SAFETY_OFFICER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Register a new user. Adjust the role field to ADMIN, SAFETY_OFFICER, or PROJECT_MANAGER."
+          }
+        },
+
+        {
+          "name": "Register - Duplicate Email (409)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Duplicate User\",\n  \"email\": \"admin@buildsmart.com\",\n  \"password\": \"TestPass@123\",\n  \"role\": \"SAFETY_OFFICER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Expected: 409 Conflict — email already registered."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "PROJECTS - Project Management",
+      "description": "Project creation and retrieval via the project-manager-service, routed through the API gateway. Used to get a valid projectId before testing safety endpoints.",
+      "item": [
+
+        {
+          "name": "Create Project - Happy Path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "var id = json.projectId || (json.data && json.data.projectId);",
+                  "if (id) {",
+                  "    pm.collectionVariables.set('projectId', id);",
+                  "    console.log('Project ID set: ' + id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectName\": \"BuildSmart Tower Phase 1\",\n  \"description\": \"High-rise construction project at city centre\",\n  \"startDate\": \"2026-05-01\",\n  \"endDate\": \"2027-12-31\",\n  \"location\": \"Colombo 03\",\n  \"budget\": 5000000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "projects"]
+            },
+            "description": "Create a new project. The projectId is auto-saved to the collection variable for use in safety tests. Requires ADMIN or PROJECT_MANAGER token."
+          }
+        },
+
+        {
+          "name": "Create Project - Missing Project Name (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Missing project name field\",\n  \"startDate\": \"2026-05-01\",\n  \"endDate\": \"2027-12-31\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "projects"]
+            },
+            "description": "Expected: 400 Bad Request — projectName is required."
+          }
+        },
+
+        {
+          "name": "Create Project - No Token (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectName\": \"Unauthorised Project\",\n  \"startDate\": \"2026-05-01\",\n  \"endDate\": \"2027-12-31\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "projects"]
+            },
+            "description": "Expected: 401 Unauthorized — no JWT provided."
+          }
+        },
+
+        {
+          "name": "Create Project - Wrong Role - Safety Officer (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{officerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectName\": \"Unauthorised Project by Officer\",\n  \"startDate\": \"2026-05-01\",\n  \"endDate\": \"2027-12-31\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "projects"]
+            },
+            "description": "Expected: 403 Forbidden — SAFETY_OFFICER cannot create projects."
+          }
+        },
+
+        {
+          "name": "Get Project by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "projects", "{{projectId}}"]
+            },
+            "description": "Retrieve a project by its ID. Used to verify the project exists before running safety tests."
+          }
+        },
+
+        {
+          "name": "Get Project - Not Found (404)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/PRJ999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "projects", "PRJ999999"]
+            },
+            "description": "Expected: 404 Not Found — project does not exist."
+          }
+        },
+
+        {
+          "name": "Get All Projects",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "projects"]
+            },
+            "description": "List all projects. Use this to find a valid projectId for testing."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INCIDENTS - Happy Path",
+      "description": "All successful incident operations. Run these with a valid SAFETY_OFFICER or ADMIN token.",
+      "item": [
+
+        {
+          "name": "Create Incident",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.incidentId) {",
+                  "    pm.collectionVariables.set('incidentId', json.incidentId);",
+                  "    console.log('Incident ID set: ' + json.incidentId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"description\": \"Worker fell from scaffolding on level 3 during morning shift, minor injuries reported\",\n  \"severity\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Report a new safety incident. incidentId is auto-saved. Requires authenticated user."
+          }
+        },
+
+        {
+          "name": "Get Incident by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}"]
+            },
+            "description": "Retrieve a single incident by ID."
+          }
+        },
+
+        {
+          "name": "Search Incidents - All (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Search Incidents - Filter by Project",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents?projectId={{projectId}}&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"],
+              "query": [
+                { "key": "projectId", "value": "{{projectId}}" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Search Incidents - Filter by Status OPEN",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents?status=OPEN&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"],
+              "query": [
+                { "key": "status", "value": "OPEN" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Search Incidents - Filter by Severity HIGH",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents?severity=HIGH&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"],
+              "query": [
+                { "key": "severity", "value": "HIGH" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Search Incidents - Filter by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents?dateFrom=2026-01-01&dateTo=2026-12-31&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"],
+              "query": [
+                { "key": "dateFrom", "value": "2026-01-01" },
+                { "key": "dateTo", "value": "2026-12-31" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Search Incidents - All Filters Combined",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents?projectId={{projectId}}&status=OPEN&severity=HIGH&dateFrom=2026-01-01&dateTo=2026-12-31&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"],
+              "query": [
+                { "key": "projectId", "value": "{{projectId}}" },
+                { "key": "status", "value": "OPEN" },
+                { "key": "severity", "value": "HIGH" },
+                { "key": "dateFrom", "value": "2026-01-01" },
+                { "key": "dateTo", "value": "2026-12-31" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Update Incident Status - OPEN to UNDER_INVESTIGATION",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=UNDER_INVESTIGATION",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "UNDER_INVESTIGATION" }]
+            },
+            "description": "Requires SAFETY_OFFICER or ADMIN token."
+          }
+        },
+
+        {
+          "name": "Update Incident Status - UNDER_INVESTIGATION to RESOLVED",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=RESOLVED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "RESOLVED" }]
+            }
+          }
+        },
+
+        {
+          "name": "Update Incident Status - RESOLVED to CLOSED",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=CLOSED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "CLOSED" }]
+            }
+          }
+        },
+
+        {
+          "name": "Delete Incident - OPEN status only",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}"]
+            },
+            "description": "Create a fresh OPEN incident first, then run this. Requires SAFETY_OFFICER or ADMIN."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INCIDENTS - Validation Errors (400)",
+      "description": "All 400 Bad Request scenarios for incident endpoints.",
+      "item": [
+
+        {
+          "name": "Create Incident - Missing projectId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Worker fell from scaffolding on level 3 during morning shift\",\n  \"severity\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 400 — projectId is required."
+          }
+        },
+
+        {
+          "name": "Create Incident - Missing description",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"description\": \"\",\n  \"severity\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 400 — description must not be blank."
+          }
+        },
+
+        {
+          "name": "Create Incident - Missing severity",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"description\": \"Worker fell from scaffolding on level 3 during morning shift\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 400 — severity is required."
+          }
+        },
+
+        {
+          "name": "Create Incident - Invalid severity enum value",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"description\": \"Worker fell from scaffolding on level 3 during morning shift\",\n  \"severity\": \"SUPER_HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 400 INVALID_ENUM_VALUE — allowed values: LOW, MEDIUM, HIGH, CRITICAL."
+          }
+        },
+
+        {
+          "name": "Create Incident - Description exceeds 5000 characters",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"description\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"severity\": \"LOW\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 400 — description must not exceed 5000 characters."
+          }
+        },
+
+        {
+          "name": "Create Incident - All fields missing (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 400 VALIDATION_ERROR — multiple field errors in one response."
+          }
+        },
+
+        {
+          "name": "Update Incident Status - Invalid enum value (400)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=PENDING",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "PENDING" }]
+            },
+            "description": "Expected: 400 — PENDING is not a valid IncidentStatus."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INCIDENTS - Not Found Errors (404)",
+      "description": "All 404 scenarios for incident endpoints.",
+      "item": [
+
+        {
+          "name": "Get Incident - ID does not exist",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/INC-DOESNOTEXIST",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "INC-DOESNOTEXIST"]
+            },
+            "description": "Expected: 404 RESOURCE_NOT_FOUND."
+          }
+        },
+
+        {
+          "name": "Update Incident Status - ID does not exist",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/INC-DOESNOTEXIST/status?status=RESOLVED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "INC-DOESNOTEXIST", "status"],
+              "query": [{ "key": "status", "value": "RESOLVED" }]
+            },
+            "description": "Expected: 404 RESOURCE_NOT_FOUND."
+          }
+        },
+
+        {
+          "name": "Delete Incident - ID does not exist",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/INC-DOESNOTEXIST",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "INC-DOESNOTEXIST"]
+            },
+            "description": "Expected: 404 RESOURCE_NOT_FOUND."
+          }
+        },
+
+        {
+          "name": "Create Incident - projectId does not exist in project-service",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"PRJ-GHOST-999\",\n  \"description\": \"Worker fell from scaffolding on level 3 during morning shift\",\n  \"severity\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 404 DOWNSTREAM_NOT_FOUND — project does not exist in project-manager-service."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INCIDENTS - Invalid Status Transitions (422)",
+      "description": "All INVALID_STATUS_TRANSITION scenarios. The service enforces: OPEN -> UNDER_INVESTIGATION -> RESOLVED -> CLOSED.",
+      "item": [
+
+        {
+          "name": "OPEN to RESOLVED - Skip UNDER_INVESTIGATION",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=RESOLVED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "RESOLVED" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION. Run on a freshly created (OPEN) incident."
+          }
+        },
+
+        {
+          "name": "OPEN to CLOSED - Skip all steps",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=CLOSED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "CLOSED" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION."
+          }
+        },
+
+        {
+          "name": "RESOLVED to UNDER_INVESTIGATION - Backward transition",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=UNDER_INVESTIGATION",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "UNDER_INVESTIGATION" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION. First move incident to RESOLVED."
+          }
+        },
+
+        {
+          "name": "CLOSED to OPEN - Reopen a terminal incident",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=OPEN",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "OPEN" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION. First move incident to CLOSED."
+          }
+        },
+
+        {
+          "name": "Delete Incident - Status is not OPEN (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}"]
+            },
+            "description": "Expected: 403 UNAUTHORIZED_OPERATION — only OPEN incidents can be deleted. Move the incident to UNDER_INVESTIGATION first, then try deleting."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INCIDENTS - Auth and Role Errors (401 / 403)",
+      "description": "Authorization and role-based access checks for incident endpoints.",
+      "item": [
+
+        {
+          "name": "Create Incident - No token (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"description\": \"Worker fell from scaffolding on level 3 during morning shift\",\n  \"severity\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 401 Unauthorized."
+          }
+        },
+
+        {
+          "name": "Create Incident - Expired token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIiwicm9sZXMiOlsiUk9MRV9BRE1JTiJdLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MTYwMDAwMDAwMX0.invalidsignature" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"description\": \"Worker fell from scaffolding on level 3 during morning shift\",\n  \"severity\": \"HIGH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents"]
+            },
+            "description": "Expected: 401 Unauthorized — token is expired or signature invalid."
+          }
+        },
+
+        {
+          "name": "Update Incident Status - Project Manager role (403)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{managerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}/status?status=UNDER_INVESTIGATION",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}", "status"],
+              "query": [{ "key": "status", "value": "UNDER_INVESTIGATION" }]
+            },
+            "description": "Expected: 403 ACCESS_DENIED — PROJECT_MANAGER cannot update incident status."
+          }
+        },
+
+        {
+          "name": "Delete Incident - Project Manager role (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{managerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/incidents/{{incidentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "incidents", "{{incidentId}}"]
+            },
+            "description": "Expected: 403 ACCESS_DENIED — PROJECT_MANAGER cannot delete incidents."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INSPECTIONS - Happy Path",
+      "description": "All successful inspection operations.",
+      "item": [
+
+        {
+          "name": "Get All Inspection Types - Public",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/types",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "types"]
+            },
+            "description": "No token required. Returns list of all valid InspectionType enum values for dropdowns."
+          }
+        },
+
+        {
+          "name": "Create Inspection - FIRE_SAFETY",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.inspectionId) {",
+                  "    pm.collectionVariables.set('inspectionId', json.inspectionId);",
+                  "    console.log('Inspection ID set: ' + json.inspectionId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Fire extinguishers found expired on levels 2 and 3, needs immediate replacement\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Requires SAFETY_OFFICER or ADMIN token. inspectionId is auto-saved."
+          }
+        },
+
+        {
+          "name": "Create Inspection - PPE_COMPLIANCE",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"PPE_COMPLIANCE\",\n  \"findings\": \"Several workers observed without helmets and safety vests on floor 5\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            }
+          }
+        },
+
+        {
+          "name": "Create Inspection - ELECTRICAL_SAFETY",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"ELECTRICAL_SAFETY\",\n  \"findings\": \"Exposed wiring found in the temporary site office, immediate action required\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            }
+          }
+        },
+
+        {
+          "name": "Get Inspection by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Search Inspections - All (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Search Inspections - Filter by Project",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections?projectId={{projectId}}&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"],
+              "query": [
+                { "key": "projectId", "value": "{{projectId}}" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Search Inspections - Filter by Status SCHEDULED",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections?status=SCHEDULED&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"],
+              "query": [
+                { "key": "status", "value": "SCHEDULED" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Search Inspections - Filter by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections?dateFrom=2026-01-01&dateTo=2026-12-31&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"],
+              "query": [
+                { "key": "dateFrom", "value": "2026-01-01" },
+                { "key": "dateTo", "value": "2026-12-31" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Update Inspection Status - SCHEDULED to IN_PROGRESS",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=IN_PROGRESS",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "IN_PROGRESS" }]
+            }
+          }
+        },
+
+        {
+          "name": "Update Inspection Status - IN_PROGRESS to COMPLETED",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=COMPLETED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "COMPLETED" }]
+            }
+          }
+        },
+
+        {
+          "name": "Update Inspection Status - IN_PROGRESS to NON_COMPLIANT",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=NON_COMPLIANT",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "NON_COMPLIANT" }]
+            },
+            "description": "Move to IN_PROGRESS first. Branches off from COMPLETED path."
+          }
+        },
+
+        {
+          "name": "Update Inspection Status - COMPLETED to CLOSED",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=CLOSED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "CLOSED" }]
+            }
+          }
+        },
+
+        {
+          "name": "Update Inspection Status - NON_COMPLIANT to CLOSED",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=CLOSED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "CLOSED" }]
+            },
+            "description": "Move to NON_COMPLIANT first, then close."
+          }
+        },
+
+        {
+          "name": "Delete Inspection - SCHEDULED status only",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}"]
+            },
+            "description": "Create a fresh inspection first. Only SCHEDULED inspections can be deleted."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INSPECTIONS - Validation Errors (400)",
+      "description": "All 400 Bad Request scenarios for inspection endpoints.",
+      "item": [
+
+        {
+          "name": "Create Inspection - Missing projectId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Fire extinguishers found expired on levels 2 and 3, needs immediate replacement\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 400 — projectId is required."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Missing inspectionType",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"findings\": \"Fire extinguishers found expired on levels 2 and 3, needs immediate replacement\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 400 — inspectionType is required."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Invalid inspectionType enum",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"RANDOM_TYPE\",\n  \"findings\": \"Some findings description that is at least twenty chars\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 400 INVALID_ENUM_VALUE — allowed values listed in response."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Findings too short (under 20 chars)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Too short\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 400 — findings must be between 20 and 200 characters."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Findings too long (over 200 chars)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"This findings field is deliberately very long to trigger the maximum length validation rule which is set to two hundred characters in the backend service configuration for safety inspections extra padding here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 400 — findings must be between 20 and 200 characters."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Missing findings",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 400 — findings is required."
+          }
+        },
+
+        {
+          "name": "Create Inspection - All fields missing",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 400 VALIDATION_ERROR — multiple field errors."
+          }
+        },
+
+        {
+          "name": "Update Inspection Status - Invalid enum value",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=DONE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "DONE" }]
+            },
+            "description": "Expected: 400 — DONE is not a valid InspectionStatus."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INSPECTIONS - Not Found Errors (404)",
+      "description": "All 404 scenarios for inspection endpoints.",
+      "item": [
+
+        {
+          "name": "Get Inspection - ID does not exist",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/INS-DOESNOTEXIST",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "INS-DOESNOTEXIST"]
+            },
+            "description": "Expected: 404 RESOURCE_NOT_FOUND."
+          }
+        },
+
+        {
+          "name": "Update Inspection Status - ID does not exist",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/INS-DOESNOTEXIST/status?status=IN_PROGRESS",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "INS-DOESNOTEXIST", "status"],
+              "query": [{ "key": "status", "value": "IN_PROGRESS" }]
+            },
+            "description": "Expected: 404 RESOURCE_NOT_FOUND."
+          }
+        },
+
+        {
+          "name": "Delete Inspection - ID does not exist",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/INS-DOESNOTEXIST",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "INS-DOESNOTEXIST"]
+            },
+            "description": "Expected: 404 RESOURCE_NOT_FOUND."
+          }
+        },
+
+        {
+          "name": "Create Inspection - projectId does not exist in project-service",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"PRJ-GHOST-999\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Fire extinguishers found expired on levels 2 and 3, needs immediate replacement\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 404 DOWNSTREAM_NOT_FOUND — project does not exist in project-manager-service."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INSPECTIONS - Invalid Status Transitions (422)",
+      "description": "All INVALID_STATUS_TRANSITION scenarios. Valid flow: SCHEDULED -> IN_PROGRESS -> COMPLETED or NON_COMPLIANT -> CLOSED.",
+      "item": [
+
+        {
+          "name": "SCHEDULED to COMPLETED - Skip IN_PROGRESS",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=COMPLETED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "COMPLETED" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION. Run on a freshly created (SCHEDULED) inspection."
+          }
+        },
+
+        {
+          "name": "SCHEDULED to NON_COMPLIANT - Skip IN_PROGRESS",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=NON_COMPLIANT",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "NON_COMPLIANT" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION."
+          }
+        },
+
+        {
+          "name": "SCHEDULED to CLOSED - Skip all steps",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=CLOSED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "CLOSED" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION."
+          }
+        },
+
+        {
+          "name": "IN_PROGRESS to SCHEDULED - Backward transition",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=SCHEDULED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "SCHEDULED" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION. Move to IN_PROGRESS first."
+          }
+        },
+
+        {
+          "name": "CLOSED to IN_PROGRESS - Reopen terminal inspection",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=IN_PROGRESS",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "IN_PROGRESS" }]
+            },
+            "description": "Expected: 422 INVALID_STATUS_TRANSITION. Move to CLOSED first."
+          }
+        },
+
+        {
+          "name": "Delete Inspection - Status is not SCHEDULED (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}"]
+            },
+            "description": "Expected: 403 UNAUTHORIZED_OPERATION — only SCHEDULED inspections can be deleted. Move to IN_PROGRESS first, then try deleting."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INSPECTIONS - Duplicate and Auth Errors",
+      "description": "Conflict and role-based access checks for inspections.",
+      "item": [
+
+        {
+          "name": "Create Inspection - Duplicate same type same day same project (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Fire extinguishers found expired on levels 2 and 3, needs immediate replacement\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 409 DUPLICATE_RESOURCE. Run this after already creating a FIRE_SAFETY inspection for the same project on the same day."
+          }
+        },
+
+        {
+          "name": "Create Inspection - No token (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Fire extinguishers found expired on levels 2 and 3, needs immediate replacement\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 401 Unauthorized."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Project Manager role (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Fire extinguishers found expired on levels 2 and 3, needs immediate replacement\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 403 ACCESS_DENIED — PROJECT_MANAGER cannot schedule inspections."
+          }
+        },
+
+        {
+          "name": "Update Inspection Status - Project Manager role (403)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{managerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=IN_PROGRESS",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "IN_PROGRESS" }]
+            },
+            "description": "Expected: 403 ACCESS_DENIED — PROJECT_MANAGER cannot update inspection status."
+          }
+        },
+
+        {
+          "name": "Delete Inspection - Project Manager role (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{managerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}"]
+            },
+            "description": "Expected: 403 ACCESS_DENIED — PROJECT_MANAGER cannot delete inspections."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "NOTIFICATIONS - Happy Path",
+      "description": "All notification endpoints. Notifications are auto-generated by the backend when incidents or inspections are created or their status changes.",
+      "item": [
+
+        {
+          "name": "Get All Notifications for User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (Array.isArray(json) && json.length > 0) {",
+                  "    pm.collectionVariables.set('notificationId', json[0].notificationId);",
+                  "    console.log('Notification ID set: ' + json[0].notificationId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "user", "{{userId}}"]
+            },
+            "description": "Returns all notifications for a user. First notificationId is auto-saved."
+          }
+        },
+
+        {
+          "name": "Get Unread Notification Count",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/unread-count/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "unread-count", "{{userId}}"]
+            },
+            "description": "Returns: { unreadCount: N }"
+          }
+        },
+
+        {
+          "name": "Mark One Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "{{notificationId}}", "read"]
+            },
+            "description": "Marks a single notification as read. Returns the updated notification."
+          }
+        },
+
+        {
+          "name": "Mark All Notifications as Read for User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/mark-all-read/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "mark-all-read", "{{userId}}"]
+            },
+            "description": "Returns: { markedCount: N }"
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "NOTIFICATIONS - Error Cases",
+      "description": "Error scenarios for notification endpoints.",
+      "item": [
+
+        {
+          "name": "Mark Notification as Read - ID does not exist (404)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/NTF-DOESNOTEXIST/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "NTF-DOESNOTEXIST", "read"]
+            },
+            "description": "Expected: 404 RESOURCE_NOT_FOUND."
+          }
+        },
+
+        {
+          "name": "Get Notifications - No token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "user", "{{userId}}"]
+            },
+            "description": "Expected: 401 Unauthorized."
+          }
+        },
+
+        {
+          "name": "Get Unread Count - No token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/unread-count/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "unread-count", "{{userId}}"]
+            },
+            "description": "Expected: 401 Unauthorized."
+          }
+        },
+
+        {
+          "name": "Get Notifications - User with no notifications (empty array)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/user/USER-NONOTIFS-999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "user", "USER-NONOTIFS-999"]
+            },
+            "description": "Expected: 200 OK with empty array []."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "ASSIGNED TASKS - Happy Path",
+      "description": "Tests for the PM-assigned task sync flow. Run 'Sync Tasks from PM' first to pull any TASK_ASSIGNED notifications from the project-service into the safety service. Uses officerToken.",
+      "item": [
+
+        {
+          "name": "Sync Tasks from PM (first call)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has newTasksSynced', () => pm.expect(json).to.have.property('newTasksSynced'));",
+                  "if (json.newTasks && json.newTasks.length > 0) {",
+                  "    pm.collectionVariables.set('assignedTaskId', json.newTasks[0].id);",
+                  "    pm.collectionVariables.set('pmTaskId', json.newTasks[0].pmTaskId);",
+                  "    console.log('assignedTaskId set to ' + json.newTasks[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks", "sync"]
+            },
+            "description": "Pulls TASK_ASSIGNED notifications from the project-service for the logged-in safety officer. New tasks are stored locally and popup notifications are created. Expected: 200 OK with SyncResult {newTasksSynced, alreadyExisted, newTasks[]}."
+          }
+        },
+
+        {
+          "name": "Sync Tasks from PM (second call — idempotent, no duplicates)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No new tasks synced on repeat call', () => pm.expect(json.newTasksSynced).to.equal(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks", "sync"]
+            },
+            "description": "Calling sync again should return newTasksSynced=0 — tasks already exist and PM notification IDs are tracked."
+          }
+        },
+
+        {
+          "name": "Get My Tasks (all)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks"]
+            },
+            "description": "Returns all tasks assigned to the authenticated safety officer. Fields: id, pmTaskId, projectId, assignedTo, assignedBy, description, status (PENDING/COMPLETED), linkedInspectionId, syncedAt, completedAt."
+          }
+        },
+
+        {
+          "name": "Get My Tasks - Filter PENDING",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks?status=PENDING",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks"],
+              "query": [{ "key": "status", "value": "PENDING" }]
+            },
+            "description": "Returns only PENDING tasks for the current officer. These are tasks the PM assigned but no completed inspection has been linked yet."
+          }
+        },
+
+        {
+          "name": "Get My Tasks - Filter COMPLETED",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks?status=COMPLETED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks"],
+              "query": [{ "key": "status", "value": "COMPLETED" }]
+            },
+            "description": "Returns tasks where the officer has completed the linked inspection. linkedInspectionId and completedAt will be populated."
+          }
+        },
+
+        {
+          "name": "Get My Tasks For Project",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks/project/{{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks", "project", "{{projectId}}"]
+            },
+            "description": "Returns tasks assigned to the current officer for a specific project. Expected: 200 OK with array (may be empty if no tasks for that project)."
+          }
+        },
+
+        {
+          "name": "Create Inspection Linked to Assigned Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('assignedTaskId present in response', () => pm.expect(json.assignedTaskId).to.exist);",
+                  "if (json.inspectionId) pm.collectionVariables.set('inspectionId', json.inspectionId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officerToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Full fire safety inspection carried out per PM task instructions.\",\n  \"assignedTaskId\": \"{{assignedTaskId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Creates an inspection and links it to an assigned task. Validation: task must belong to this officer, task's projectId must match, task must be PENDING. When inspection later reaches COMPLETED the task auto-moves to COMPLETED."
+          }
+        },
+
+        {
+          "name": "Update Inspection to IN_PROGRESS (linked task still PENDING)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=IN_PROGRESS",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "IN_PROGRESS" }]
+            },
+            "description": "Moves inspection to IN_PROGRESS. Task stays PENDING at this point."
+          }
+        },
+
+        {
+          "name": "Update Inspection to COMPLETED → Task auto-completes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Inspection COMPLETED', () => pm.expect(pm.response.json().status).to.equal('COMPLETED'));",
+                  "console.log('Now verify the task via GET /api/safety/tasks?status=COMPLETED — it should appear there.');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}/status?status=COMPLETED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}", "status"],
+              "query": [{ "key": "status", "value": "COMPLETED" }]
+            },
+            "description": "When inspection reaches COMPLETED, the linked AssignedTask is automatically set to COMPLETED with completedAt timestamp and linkedInspectionId populated. Run 'Get My Tasks - Filter COMPLETED' after this to verify."
+          }
+        },
+
+        {
+          "name": "Verify Task Now COMPLETED (after inspection completes)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks?status=COMPLETED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks"],
+              "query": [{ "key": "status", "value": "COMPLETED" }]
+            },
+            "description": "After the linked inspection is COMPLETED the task should appear here with linkedInspectionId set to the inspection ID and completedAt populated."
+          }
+        },
+
+        {
+          "name": "TASK_ASSIGNED Popup Notification created by sync",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var taskNotifs = json.filter(n => n.type === 'TASK_ASSIGNED');",
+                  "pm.test('At least one TASK_ASSIGNED notification exists', () => pm.expect(taskNotifs.length).to.be.above(0));",
+                  "if (taskNotifs.length > 0) pm.collectionVariables.set('notificationId', taskNotifs[0].notificationId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/notifications/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "notifications", "user", "{{userId}}"]
+            },
+            "description": "Each synced task creates a TASK_ASSIGNED SafetyNotification (popup). This verifies the notification exists with type=TASK_ASSIGNED, title='New Task Assigned: TASKXXX', and relatedEntityId=SAT001."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "ASSIGNED TASKS - Error Cases",
+      "description": "Error and edge-case tests for the assigned task flow.",
+      "item": [
+
+        {
+          "name": "Sync Tasks - No Token (401)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks", "sync"]
+            },
+            "description": "Expected: 401 Unauthorized — no JWT provided."
+          }
+        },
+
+        {
+          "name": "Sync Tasks - Wrong Role (SITE_ENGINEER) (403)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{managerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks", "sync"]
+            },
+            "description": "Expected: 403 Forbidden — only SAFETY_OFFICER or ADMIN can sync tasks. Use a PROJECT_MANAGER token to simulate wrong role."
+          }
+        },
+
+        {
+          "name": "Get My Tasks - No Token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks"]
+            },
+            "description": "Expected: 401 Unauthorized."
+          }
+        },
+
+        {
+          "name": "Create Inspection - assignedTaskId not found (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officerToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Inspection findings with a non-existent assigned task id.\",\n  \"assignedTaskId\": \"SAT999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 404 Not Found — SAT999 does not exist in assigned_tasks table."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Task belongs to different officer (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"ELECTRICAL\",\n  \"findings\": \"Trying to use another officer task which is 20+ chars long.\",\n  \"assignedTaskId\": \"{{assignedTaskId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 403 UNAUTHORIZED_OPERATION — task was assigned to a different officer (BSSO002) but this request is made with adminToken for a different userId."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Task already COMPLETED (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officerToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"STRUCTURAL\",\n  \"findings\": \"Second inspection attempt on an already completed task.\",\n  \"assignedTaskId\": \"{{assignedTaskId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 409 TASK_ALREADY_COMPLETED — the task was already completed by the previous inspection. Run this AFTER the 'Update Inspection to COMPLETED' request above."
+          }
+        },
+
+        {
+          "name": "Create Inspection - Project is COMPLETED/CANCELLED (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officerToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"PROJ-CLOSED-001\",\n  \"inspectionType\": \"FIRE_SAFETY\",\n  \"findings\": \"Attempting inspection on a closed project for testing purposes.\",\n  \"assignedTaskId\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Expected: 422 PROJECT_NOT_AVAILABLE — project status is COMPLETED or CANCELLED. Replace projectId with a known closed project ID in your environment."
+          }
+        },
+
+        {
+          "name": "Get Tasks For Unrelated Project (empty array)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/tasks/project/PROJ-OTHER-999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "tasks", "project", "PROJ-OTHER-999"]
+            },
+            "description": "Expected: 200 OK with empty array — this officer has no tasks on project PROJ-OTHER-999."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "INSPECTIONS - New Fields (assignedTaskId)",
+      "description": "Verifies that existing inspection endpoints now return the new assignedTaskId field, and that creating without assignedTaskId still works.",
+      "item": [
+
+        {
+          "name": "Create Inspection WITHOUT assignedTaskId (still valid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "pm.test('assignedTaskId is null', () => pm.expect(json.assignedTaskId).to.be.null);",
+                  "if (json.inspectionId) pm.collectionVariables.set('freeInspectionId', json.inspectionId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officerToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"inspectionType\": \"ENVIRONMENTAL\",\n  \"findings\": \"Routine environmental check carried out without PM task link.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections"]
+            },
+            "description": "Backwards compatibility test — omitting assignedTaskId is still allowed. Response should have assignedTaskId: null."
+          }
+        },
+
+        {
+          "name": "Get Inspection By ID - verify assignedTaskId field",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('assignedTaskId field exists in response', () => pm.expect(pm.response.json()).to.have.property('assignedTaskId'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/safety/inspections/{{inspectionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "safety", "inspections", "{{inspectionId}}"]
+            },
+            "description": "Verifies that the new assignedTaskId field is always present in InspectionResponse (null or the task ID)."
+          }
+        }
+
+      ]
+    }
+
+  ]
+}
+
+
