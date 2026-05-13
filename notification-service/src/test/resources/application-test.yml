@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:notif;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+app:
+  jwt:
+    secret: dGVzdC1zZWNyZXQta2V5LWZvci1ub3RpZmljYXRpb24tdGVzdHMtMjU2LWJpdHMhIQ==
+    issuer: auth-service
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      notificationDb:
+        slidingWindowSize: 4
+        minimumNumberOfCalls: 4
+        failureRateThreshold: 50
+        waitDurationInOpenState: 1s
+      notificationCreate:
+        slidingWindowSize: 4
+        minimumNumberOfCalls: 4
+        failureRateThreshold: 50
+        waitDurationInOpenState: 1s
+  retry:
+    instances:
+      notificationDb:
+        maxAttempts: 1
+      notificationCreate:
+        maxAttempts: 1

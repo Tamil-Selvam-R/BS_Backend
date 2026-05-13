@@ -1,0 +1,443 @@
+{
+  "info": {
+    "_postman_id": "finance-service-api",
+    "name": "Finance Service - Project API",
+    "description": "API collection for testing Finance Service with Feign client integration and role-based access control",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Get Auth Token (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@buildsmart.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8082/users/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8082",
+              "path": ["users", "login"]
+            },
+            "description": "Login as ADMIN user to get authentication token"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auth Token (FINANCE_OFFICER)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"finance@buildsmart.com\",\n  \"password\": \"finance123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8082/users/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8082",
+              "path": ["users", "login"]
+            },
+            "description": "Login as FINANCE_OFFICER user to get authentication token"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auth Token (INVALID_ROLE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@buildsmart.com\",\n  \"password\": \"user123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8082/users/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8082",
+              "path": ["users", "login"]
+            },
+            "description": "Login as regular USER (should be denied access to Finance Service)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Get Project by ID (Success)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/projects/PROJ-001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "projects", "PROJ-001"]
+            },
+            "description": "Get project details for ID PROJ-001. Should succeed with valid ADMIN or FINANCE_OFFICER token."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Project by ID (No Authentication)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/projects/PROJ-001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "projects", "PROJ-001"]
+            },
+            "description": "Get project details without authentication. Should return 401 Unauthorized."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Project by ID (Invalid Token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid_token_12345",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/projects/PROJ-001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "projects", "PROJ-001"]
+            },
+            "description": "Get project details with invalid token. Should return 401 Unauthorized."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Project by ID (Wrong Role)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/projects/PROJ-001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "projects", "PROJ-001"]
+            },
+            "description": "Get project details with USER role token. Should return 403 Forbidden (not authorized)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Project by ID (Finance Officer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{finance_officer_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/projects/PROJ-001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "projects", "PROJ-001"]
+            },
+            "description": "Get project details as FINANCE_OFFICER. Should succeed and return 200 OK with project details."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Project by ID (Project Not Found)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/projects/INVALID-PROJ-999",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "projects", "INVALID-PROJ-999"]
+            },
+            "description": "Get non-existent project. Should return 404 Not Found or 400 Bad Request with appropriate error message."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Validation",
+      "item": [
+        {
+          "name": "Validate Access (Success)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/projects/validate/access",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "projects", "validate", "access"]
+            },
+            "description": "Validate that current user has access to project finance operations. Should return true for valid ADMIN or FINANCE_OFFICER."
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Access (Invalid Role)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/projects/validate/access",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "projects", "validate", "access"]
+            },
+            "description": "Validate access with USER role. Should return 403 Forbidden."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Budget Operations",
+      "item": [
+        {
+          "name": "Create Budget",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"PROJ-001\",\n  \"plannedAmount\": 50000,\n  \"budgetCategory\": \"EQUIPMENT\",\n  \"description\": \"Equipment budget for project PROJ-001\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/budgets",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "budgets"]
+            },
+            "description": "Create a new budget for a project. Requires ADMIN or FINANCE_OFFICER role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Budget by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{finance_officer_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/budgets/BUD-001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "budgets", "BUD-001"]
+            },
+            "description": "Get budget details by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Budgets by Project",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/budgets/projects/PROJ-001?page=0&size=10&sortBy=createdAt&sortOrder=DESC",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "budgets", "projects", "PROJ-001"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "DESC"
+                }
+              ]
+            },
+            "description": "Get all budgets for a specific project with pagination."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string",
+      "description": "JWT token for ADMIN user"
+    },
+    {
+      "key": "finance_officer_token",
+      "value": "",
+      "type": "string",
+      "description": "JWT token for FINANCE_OFFICER user"
+    },
+    {
+      "key": "user_token",
+      "value": "",
+      "type": "string",
+      "description": "JWT token for regular USER (should be denied)"
+    }
+  ]
+}
+
