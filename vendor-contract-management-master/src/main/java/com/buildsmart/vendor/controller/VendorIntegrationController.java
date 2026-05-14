@@ -2,8 +2,20 @@ package com.buildsmart.vendor.controller;
 
 import com.buildsmart.vendor.client.NotificationServiceClient;
 import com.buildsmart.vendor.client.dto.NotificationCreateRequest;
+import com.buildsmart.vendor.dto.response.AssignedTaskResponse;
+import com.buildsmart.vendor.enums.AssignedTaskStatus;
+import com.buildsmart.vendor.service.AssignedTaskService;
 import com.buildsmart.vendor.service.DocumentService;
 import com.buildsmart.vendor.service.InvoiceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +35,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/vendor-integration")
+@Tag(name = "Vendor Integration (Internal)", description = "Internal service-to-service endpoints used by Project Manager, SiteOps, and Analytics. Most paths are open (no JWT) for inter-service calls.")
 public class VendorIntegrationController {
 
     private static final Logger log = LoggerFactory.getLogger(VendorIntegrationController.class);
@@ -31,8 +44,8 @@ public class VendorIntegrationController {
     private final DocumentService documentService;
     private final com.buildsmart.vendor.client.ProjectManagerClient projectManagerClient;
     private final com.buildsmart.vendor.service.ApprovalSyncService approvalSyncService;
-    /** FEATURE SET 2 — used by the Site→Vendor delivery callback handler. */
     private final com.buildsmart.vendor.service.DeliveryService deliveryService;
+    private final AssignedTaskService assignedTaskService;
 
     /**
      * Central notification-service client. Replaces the deleted local
@@ -46,12 +59,14 @@ public class VendorIntegrationController {
                                        DocumentService documentService,
                                        com.buildsmart.vendor.client.ProjectManagerClient projectManagerClient,
                                        com.buildsmart.vendor.service.ApprovalSyncService approvalSyncService,
-                                       com.buildsmart.vendor.service.DeliveryService deliveryService) {
+                                       com.buildsmart.vendor.service.DeliveryService deliveryService,
+                                       AssignedTaskService assignedTaskService) {
         this.invoiceService = invoiceService;
         this.documentService = documentService;
         this.projectManagerClient = projectManagerClient;
         this.approvalSyncService = approvalSyncService;
         this.deliveryService = deliveryService;
+        this.assignedTaskService = assignedTaskService;
     }
 
     /**
@@ -293,6 +308,45 @@ public class VendorIntegrationController {
                     deliveryId, ex.getMessage());
             return ResponseEntity.status(500).body("Failed to update delivery: " + ex.getMessage());
         }
+    }
+
+    @Operation(
+            summary = "List all assigned tasks (internal — analytics use)",
+            description = "Returns all vendor-assigned tasks across every vendor. " +
+                    "This endpoint is open (no JWT required) and is intended for the analytics/report service. " +
+                    "Do not expose this to end-user clients.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Task list returned successfully",
+                    content = @Content(mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = AssignedTaskResponse.class))))
+    })
+    @GetMapping("/tasks")
+    public ResponseEntity<List<AssignedTaskResponse>> getAllAssignedTasks() {
+        return ResponseEntity.ok(assignedTaskService.getAllTasks());
+    }
+
+    @Operation(
+            summary = "List assigned tasks filtered by status (internal — analytics use)",
+            description = "Returns all vendor-assigned tasks matching the given status. " +
+                    "Valid values: PENDING, SUBMITTED, COMPLETED, REJECTED. " +
+                    "This endpoint is open (no JWT required) and is intended for the analytics/report service.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Filtered task list returned successfully",
+                    content = @Content(mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = AssignedTaskResponse.class)))),
+            @ApiResponse(responseCode = "400", description = "Invalid status value", content = @Content)
+    })
+    @GetMapping("/tasks/status/{status}")
+    public ResponseEntity<List<AssignedTaskResponse>> getAssignedTasksByStatus(
+            @Parameter(description = "Task status filter: PENDING, SUBMITTED, COMPLETED, or REJECTED", required = true)
+            @PathVariable("status") String status) {
+        AssignedTaskStatus taskStatus;
+        try {
+            taskStatus = AssignedTaskStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(assignedTaskService.getAllTasksByStatus(taskStatus));
     }
 
     /**

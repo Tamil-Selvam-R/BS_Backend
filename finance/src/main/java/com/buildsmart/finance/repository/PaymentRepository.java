@@ -67,6 +67,29 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
     Page<Payment> findByCreatedBy(@Param("createdBy") String createdBy, Pageable pageable);
 
     /**
+     * Find payments for an expense created by a specific user (FINANCE_OFFICER scoping).
+     */
+    @Query("SELECT p FROM Payment p WHERE p.expenseId = :expenseId AND p.createdBy = :createdBy AND p.isDeleted = false")
+    Page<Payment> findByExpenseIdAndCreatedBy(@Param("expenseId") String expenseId,
+                                              @Param("createdBy") String createdBy,
+                                              Pageable pageable);
+
+    /**
+     * Find payments by status created by a specific user (FINANCE_OFFICER scoping).
+     */
+    @Query("SELECT p FROM Payment p WHERE p.status = :status AND p.createdBy = :createdBy AND p.isDeleted = false")
+    Page<Payment> findByStatusAndCreatedBy(@Param("status") PaymentStatus status,
+                                           @Param("createdBy") String createdBy,
+                                           Pageable pageable);
+
+    /**
+     * Find pending payments created by a specific user (FINANCE_OFFICER scoping).
+     */
+    @Query("SELECT p FROM Payment p WHERE p.status IN ('INITIATED', 'PENDING') " +
+            "AND p.createdBy = :createdBy AND p.isDeleted = false")
+    List<Payment> findPendingPaymentsByCreatedBy(@Param("createdBy") String createdBy);
+
+    /**
      * Find pending payments
      */
     @Query("SELECT p FROM Payment p WHERE p.status IN ('INITIATED', 'PENDING') AND p.isDeleted = false")

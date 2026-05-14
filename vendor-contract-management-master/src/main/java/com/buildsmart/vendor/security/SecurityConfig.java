@@ -48,6 +48,9 @@ public class SecurityConfig {
                         // Allow project manager service to read invoice/document statuses
                         .requestMatchers(HttpMethod.GET, "/api/invoices/status/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/documents/status/**").permitAll()
+                        // Internal: analytics/report service fetches all tasks without a user JWT
+                        .requestMatchers(HttpMethod.GET, "/api/vendor-integration/tasks").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/vendor-integration/tasks/status/**").permitAll()
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )

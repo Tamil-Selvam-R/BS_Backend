@@ -111,6 +111,13 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
+    public List<ProjectResponse> getProjectsByCreatedBy(String createdBy) {
+        return projectRepository.findByCreatedBy(createdBy).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public ProjectResponse getProjectById(String projectId) {
         Project project = projectRepository.findByProjectId(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project", projectId));

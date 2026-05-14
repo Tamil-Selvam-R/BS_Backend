@@ -47,6 +47,16 @@ public interface BudgetService {
     PagedResponse<BudgetResponse> getBudgetsByCreatedBy(String createdBy, Pageable pageable);
 
     /**
+     * Get budgets for a project created by a specific user (FINANCE_OFFICER scoping).
+     */
+    PagedResponse<BudgetResponse> getBudgetsByProjectIdAndCreatedBy(String projectId, String createdBy, Pageable pageable);
+
+    /**
+     * Get budgets by status created by a specific user (FINANCE_OFFICER scoping).
+     */
+    PagedResponse<BudgetResponse> getBudgetsByStatusAndCreatedBy(String status, String createdBy, Pageable pageable);
+
+    /**
      * Update budget (PATCH) - Only allowed for DRAFT status
      * Can only update plannedAmount and budgetCategory
      */

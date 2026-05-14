@@ -2,6 +2,8 @@ package com.buildsmart.vendor.repository;
 
 import com.buildsmart.vendor.enums.ContractStatus;
 import com.buildsmart.vendor.entity.Contract;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +13,11 @@ import java.util.Optional;
 
 public interface ContractRepository extends JpaRepository<Contract, String> {
     List<Contract> findByVendorId(String vendorId);
+    /** Paginated vendor contracts — used when VENDOR role calls GET /api/contracts. */
+    Page<Contract> findByVendorId(String vendorId, Pageable pageable);
     List<Contract> findByStatus(ContractStatus status);
+    /** Vendor's contracts filtered by status — used for GET /api/contracts/status/{status}. */
+    List<Contract> findByVendorIdAndStatus(String vendorId, ContractStatus status);
     Optional<Contract> findTopByOrderByContractIdDesc();
 
     /**

@@ -20,7 +20,19 @@ public interface InvoiceService {
     // Internal methods called by project manager via feign client
     InvoiceResponse updateInvoiceApprovalStatus(String id, String approvedBy);
     InvoiceResponse updateInvoiceRejectionStatus(String id, String rejectedBy, String rejectionReason);
-    
+
     InvoiceResponse updateInvoiceApprovalStatusByApprovalId(String approvalId, String approvedBy);
     InvoiceResponse updateInvoiceRejectionStatusByApprovalId(String approvalId, String rejectedBy, String rejectionReason);
+
+    /**
+     * Paginated invoices scoped to a vendor's own contracts.
+     * Used when VENDOR role calls GET /api/invoices.
+     */
+    Page<InvoiceResponse> getInvoicesByContractIds(List<String> contractIds, Pageable pageable);
+
+    /**
+     * Invoices for a vendor's contracts filtered by status.
+     * Used when VENDOR role calls GET /api/invoices/status/{status}.
+     */
+    List<InvoiceResponse> getInvoicesByContractIdsAndStatus(List<String> contractIds, InvoiceStatus status);
 }

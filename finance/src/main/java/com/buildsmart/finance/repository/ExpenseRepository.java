@@ -56,6 +56,33 @@ public interface ExpenseRepository extends JpaRepository<Expense, String> {
     Page<Expense> findByCreatedBy(@Param("createdBy") String createdBy, Pageable pageable);
 
     /**
+     * Find expenses for a budget created by a specific user (FINANCE_OFFICER scoping).
+     */
+    @Query("SELECT e FROM Expense e WHERE e.budgetId = :budgetId AND e.createdBy = :createdBy " +
+            "AND e.isDeleted = false")
+    Page<Expense> findByBudgetIdAndCreatedBy(@Param("budgetId") String budgetId,
+                                              @Param("createdBy") String createdBy,
+                                              Pageable pageable);
+
+    /**
+     * Find expenses for a project created by a specific user (FINANCE_OFFICER scoping).
+     */
+    @Query("SELECT e FROM Expense e WHERE e.projectId = :projectId AND e.createdBy = :createdBy " +
+            "AND e.isDeleted = false")
+    Page<Expense> findByProjectIdAndCreatedBy(@Param("projectId") String projectId,
+                                               @Param("createdBy") String createdBy,
+                                               Pageable pageable);
+
+    /**
+     * Find expenses by status created by a specific user (FINANCE_OFFICER scoping).
+     */
+    @Query("SELECT e FROM Expense e WHERE e.status = :status AND e.createdBy = :createdBy " +
+            "AND e.isDeleted = false ORDER BY e.createdAt DESC")
+    Page<Expense> findByStatusAndCreatedBy(@Param("status") ExpenseStatus status,
+                                           @Param("createdBy") String createdBy,
+                                           Pageable pageable);
+
+    /**
      * Find pending expenses (not yet approved)
      */
     @Query("SELECT e FROM Expense e WHERE e.projectId = :projectId AND e.status IN ('DRAFT', 'SUBMITTED') " +

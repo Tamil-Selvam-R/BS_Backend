@@ -25,4 +25,16 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
     /** Latest rejected approval for a task — used to surface rejection reason in TaskResponse. */
     java.util.Optional<ApprovalRequest> findTopByTaskTaskIdAndStatusOrderByApprovedAtDesc(
             String taskId, ApprovalStatus status);
+
+    /**
+     * All approvals for projects created by the given PM userId.
+     * Used to scope GET /approvals to the calling PROJECT_MANAGER's own projects.
+     */
+    List<ApprovalRequest> findByProjectCreatedBy(String createdBy);
+
+    /**
+     * Pending approvals for projects created by the given PM userId.
+     * Used to scope GET /approvals/pending to the calling PROJECT_MANAGER's own projects.
+     */
+    List<ApprovalRequest> findByProjectCreatedByAndStatus(String createdBy, ApprovalStatus status);
 }

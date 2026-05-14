@@ -480,6 +480,27 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
     }
 
+    @Override
+    public org.springframework.data.domain.Page<InvoiceResponse> getInvoicesByContractIds(
+            java.util.List<String> contractIds,
+            org.springframework.data.domain.Pageable pageable) {
+        if (contractIds == null || contractIds.isEmpty()) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        return invoiceRepository.findByContractIdIn(contractIds, pageable).map(this::toDTO);
+    }
+
+    @Override
+    public java.util.List<InvoiceResponse> getInvoicesByContractIdsAndStatus(
+            java.util.List<String> contractIds,
+            com.buildsmart.vendor.enums.InvoiceStatus status) {
+        if (contractIds == null || contractIds.isEmpty()) {
+            return java.util.List.of();
+        }
+        return invoiceRepository.findByContractIdInAndStatus(contractIds, status)
+                .stream().map(this::toDTO).collect(java.util.stream.Collectors.toList());
+    }
+
     private InvoiceResponse toDTO(Invoice invoice) {
         InvoiceResponse dto = new InvoiceResponse();
         dto.setInvoiceId(invoice.getInvoiceId());

@@ -204,9 +204,16 @@ public class DeliveryServiceImpl implements DeliveryService {
     private void notifySiteOpsOfDispatch(Delivery delivery, String pmUserId) {
         if (siteOpsClient == null) return;
         try {
+            // Resolve projectId from the contract so SiteOps can scope the delivery
+            // to the correct project — site engineers only see deliveries for their projects.
+            String projectId = contractRepository.findById(delivery.getContractId())
+                    .map(c -> c.getProjectId())
+                    .orElse(null);
+
             siteOpsClient.notifyDeliveryDispatched(
                     new com.buildsmart.vendor.client.SiteOpsClient.DeliveryDispatchPayload(
                             delivery.getDeliveryId(),
+                            projectId,               // ← resolved from Contract.projectId
                             delivery.getContractId(),
                             delivery.getItem(),
                             delivery.getQuantity(),
@@ -365,6 +372,27 @@ public class DeliveryServiceImpl implements DeliveryService {
             deliveryLog.warn("Could not resolve PM userId for project {}: {}", projectId, ex.getMessage());
             return null;
         }
+    }
+
+    @Override
+    public org.springframework.data.domain.Page<DeliveryResponse> getDeliveriesByContractIds(
+            java.util.List<String> contractIds,
+            org.springframework.data.domain.Pageable pageable) {
+        if (contractIds == null || contractIds.isEmpty()) {
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        return deliveryRepository.findByContractIdIn(contractIds, pageable).map(this::toDTO);
+    }
+
+    @Override
+    public java.util.List<DeliveryResponse> getDeliveriesByContractIdsAndStatus(
+            java.util.List<String> contractIds,
+            com.buildsmart.vendor.enums.DeliveryStatus status) {
+        if (contractIds == null || contractIds.isEmpty()) {
+            return java.util.List.of();
+        }
+        return deliveryRepository.findByContractIdInAndStatus(contractIds, status)
+                .stream().map(this::toDTO).collect(java.util.stream.Collectors.toList());
     }
 
     private DeliveryResponse toDTO(Delivery delivery) {

@@ -13,7 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -48,9 +50,15 @@ public class ProjectController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all projects")
+    @Operation(summary = "Get all projects",
+               description = "**PROJECT_MANAGER**: returns only projects created by the calling user.\n\n" +
+                       "**ADMIN**: returns all projects.")
     public ResponseEntity<List<ProjectResponse>> getAllProjects() {
-        return ResponseEntity.ok(projectService.getAllProjects());
+        if (isAdmin()) {
+            return ResponseEntity.ok(projectService.getAllProjects());
+        }
+        String currentUserId = resolveCurrentUserId();
+        return ResponseEntity.ok(projectService.getProjectsByCreatedBy(currentUserId));
     }
 
     @GetMapping("/{projectId}")
@@ -188,8 +196,32 @@ public class ProjectController {
 
     @GetMapping("/tasks/my")
     @Operation(summary = "Get tasks assigned to a specific user",
-               description = "Returns all tasks for the given userId — used by the assignee's 'My Tasks' view.")
+               description = "Returns all tasks for the given userId — used by the assignee's 'My Tasks' view.\n\n" +
+                       "**Non-ADMIN**: returns 403 if the userId param does not match the caller's own userId.")
     public ResponseEntity<List<TaskResponse>> getMyTasks(@RequestParam String userId) {
+        if (!isAdmin()) {
+            String currentUserId = resolveCurrentUserId();
+            if (!currentUserId.equals(userId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Access denied: you can only view your own tasks.");
+            }
+        }
         return ResponseEntity.ok(projectService.getMyTasks(userId));
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /** Returns the current user's userId from the Security context. */
+    private String resolveCurrentUserId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : "";
+    }
+
+    /** True when the current JWT holder has the ADMIN role. */
+    private boolean isAdmin() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 }

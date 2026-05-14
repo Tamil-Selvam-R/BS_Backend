@@ -241,6 +241,20 @@ public class AssignedTaskServiceImpl implements AssignedTaskService {
         return toResponse(saved);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<AssignedTaskResponse> getAllTasks() {
+        return assignedTaskRepository.findAll()
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AssignedTaskResponse> getAllTasksByStatus(AssignedTaskStatus status) {
+        return assignedTaskRepository.findByStatusOrderBySyncedAtDesc(status)
+                .stream().map(this::toResponse).toList();
+    }
+
     private String buildDescription(PmNotificationDto notif) {
         String base = notif.title() != null ? notif.title() : "";
         if (notif.message() != null && !notif.message().isBlank()) {

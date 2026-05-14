@@ -10,12 +10,22 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-
+/**
+ * Approval REST controller.
+ *
+ * Authorization policy on GET endpoints:
+ *   - PROJECT_MANAGER: sees only approvals for projects they created (project.createdBy = caller's userId).
+ *   - ADMIN: unrestricted access to all approvals.
+ *
+ * PM JWT filter resolves userId via IAM Feign call and sets it as the Security principal,
+ * so {@code auth.getName()} reliably returns the caller's userId.
+ */
 @RestController
 @RequestMapping("/approvals")
 @RequiredArgsConstructor
@@ -33,18 +43,36 @@ public class ApprovalController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all approvals")
+    @Operation(summary = "Get all approvals",
+               description = "**PROJECT_MANAGER**: returns only approvals for projects created by the calling user.\n\n" +
+                       "**ADMIN**: returns all approvals.")
     public ResponseEntity<List<ApprovalResponse>> getAllApprovals() {
-        List<ApprovalResponse> responses = approvalService.getAllApprovals().stream()
+        List<ApprovalRequest> approvals;
+        if (isAdmin()) {
+            approvals = approvalService.getAllApprovals();
+        } else {
+            String currentUserId = resolveCurrentUserId();
+            approvals = approvalService.getApprovalsByProjectOwner(currentUserId);
+        }
+        List<ApprovalResponse> responses = approvals.stream()
                 .map(ApprovalResponse::fromEntity)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     @GetMapping("/pending")
-    @Operation(summary = "Get pending approvals")
+    @Operation(summary = "Get pending approvals",
+               description = "**PROJECT_MANAGER**: returns only pending approvals for projects created by the calling user.\n\n" +
+                       "**ADMIN**: returns all pending approvals.")
     public ResponseEntity<List<ApprovalResponse>> getPendingApprovals() {
-        List<ApprovalResponse> responses = approvalService.getPendingApprovals().stream()
+        List<ApprovalRequest> approvals;
+        if (isAdmin()) {
+            approvals = approvalService.getPendingApprovals();
+        } else {
+            String currentUserId = resolveCurrentUserId();
+            approvals = approvalService.getPendingApprovalsByProjectOwner(currentUserId);
+        }
+        List<ApprovalResponse> responses = approvals.stream()
                 .map(ApprovalResponse::fromEntity)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
@@ -77,5 +105,21 @@ public class ApprovalController {
     @Operation(summary = "Get approval statistics")
     public ResponseEntity<ApprovalService.ApprovalStats> getApprovalStats() {
         return ResponseEntity.ok(approvalService.getApprovalStats());
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /** Returns the current user's userId from the Security context. */
+    private String resolveCurrentUserId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : "";
+    }
+
+    /** True when the current JWT holder has the ADMIN role. */
+    private boolean isAdmin() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 }

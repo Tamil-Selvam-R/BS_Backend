@@ -81,6 +81,24 @@ public class ApprovalService {
         return approvalRepository.findByStatus(ApprovalStatus.PENDING);
     }
 
+    /**
+     * Returns all approvals for projects owned by the given PROJECT_MANAGER userId.
+     * Used to scope GET /approvals when the caller is a PROJECT_MANAGER (not ADMIN).
+     */
+    @Transactional(readOnly = true)
+    public List<ApprovalRequest> getApprovalsByProjectOwner(String createdBy) {
+        return approvalRepository.findByProjectCreatedBy(createdBy);
+    }
+
+    /**
+     * Returns pending approvals for projects owned by the given PROJECT_MANAGER userId.
+     * Used to scope GET /approvals/pending when the caller is a PROJECT_MANAGER (not ADMIN).
+     */
+    @Transactional(readOnly = true)
+    public List<ApprovalRequest> getPendingApprovalsByProjectOwner(String createdBy) {
+        return approvalRepository.findByProjectCreatedByAndStatus(createdBy, ApprovalStatus.PENDING);
+    }
+
     @Transactional(readOnly = true)
     public List<ApprovalRequest> getApprovalsByProject(String projectId) {
         return approvalRepository.findByProjectProjectId(projectId);

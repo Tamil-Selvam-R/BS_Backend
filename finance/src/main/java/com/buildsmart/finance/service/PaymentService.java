@@ -42,6 +42,21 @@ public interface PaymentService {
     PagedResponse<PaymentResponse> getPaymentsByCreatedBy(String createdBy, Pageable pageable);
 
     /**
+     * Get payments for an expense created by a specific user (FINANCE_OFFICER scoping).
+     */
+    PagedResponse<PaymentResponse> getPaymentsByExpenseIdAndCreatedBy(String expenseId, String createdBy, Pageable pageable);
+
+    /**
+     * Get payments by status created by a specific user (FINANCE_OFFICER scoping).
+     */
+    PagedResponse<PaymentResponse> getPaymentsByStatusAndCreatedBy(String status, String createdBy, Pageable pageable);
+
+    /**
+     * Get pending payments created by a specific user (FINANCE_OFFICER scoping).
+     */
+    PagedResponse<PaymentResponse> getPendingPaymentsByCreatedBy(String createdBy, Pageable pageable);
+
+    /**
      * Get pending payments
      */
     PagedResponse<PaymentResponse> getPendingPayments(Pageable pageable);

@@ -255,6 +255,19 @@ public class BudgetServiceImpl implements BudgetService {
         return buildPagedResponse(budgets);
     }
     @Override
+    public PagedResponse<BudgetResponse> getBudgetsByProjectIdAndCreatedBy(String projectId, String createdBy, Pageable pageable) {
+        log.info("Fetching budgets for project: {} created by: {}", projectId, createdBy);
+        Page<Budget> budgets = budgetRepository.findByProjectIdAndCreatedBy(projectId, createdBy, pageable);
+        return buildPagedResponse(budgets);
+    }
+    @Override
+    public PagedResponse<BudgetResponse> getBudgetsByStatusAndCreatedBy(String status, String createdBy, Pageable pageable) {
+        log.info("Fetching budgets with status: {} created by: {}", status, createdBy);
+        BudgetStatus budgetStatus = BudgetStatus.valueOf(status.toUpperCase());
+        Page<Budget> budgets = budgetRepository.findByStatusAndCreatedBy(budgetStatus, createdBy, pageable);
+        return buildPagedResponse(budgets);
+    }
+    @Override
     public BudgetResponse updateBudget(String budgetId, BudgetUpdateRequest request) {
         log.info("Updating budget with ID: {}", budgetId);
         // Get budget by ID

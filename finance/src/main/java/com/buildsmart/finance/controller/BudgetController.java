@@ -21,8 +21,20 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+/**
+ * Budget REST controller.
+ *
+ * Authorization policy on GET endpoints:
+ *   - FINANCE_OFFICER: sees only budgets they created (createdBy = userId from JWT via IAM).
+ *   - ADMIN: unrestricted access to all budgets.
+ *
+ * Finance JWT filter resolves userId via IAM Feign call and sets it as the Security principal,
+ * so {@code auth.getName()} reliably returns the caller's userId.
+ */
 @Tag(name = "Budgets", description = "Budget lifecycle management — create, review, approve and track utilization")
 @RestController
 @RequestMapping("/api/budgets")
@@ -33,12 +45,9 @@ public class BudgetController {
 
     private final BudgetService budgetService;
 
-    /**
-     * Create a new budget
-     * POST /api/budgets
-     * Required role: ADMIN or FINANCE_OFFICER
-     */
-    @Operation(summary = "Create a new budget", description = "Creates a DRAFT budget for the given project and task. The task must be assigned to the authenticated Finance Officer.")
+    @Operation(summary = "Create a new budget",
+               description = "Creates a DRAFT budget for the given project and task. " +
+                       "The task must be assigned to the authenticated Finance Officer.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Budget created successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid request or task not assigned to current user"),
@@ -53,14 +62,12 @@ public class BudgetController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * Get budget by ID
-     * GET /api/budgets/{budgetId}
-     * Required role: ADMIN or FINANCE_OFFICER
-     */
-    @Operation(summary = "Get budget by ID")
+    @Operation(summary = "Get budget by ID",
+               description = "**FINANCE_OFFICER**: returns 403 if the budget was not created by the calling user.\n\n" +
+                       "**ADMIN**: unrestricted.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Budget found"),
+        @ApiResponse(responseCode = "403", description = "Finance Officer accessing another user's budget"),
         @ApiResponse(responseCode = "404", description = "Budget not found")
     })
     @GetMapping("/{budgetId}")
@@ -68,14 +75,15 @@ public class BudgetController {
             @Parameter(description = "Budget ID") @PathVariable String budgetId) {
         log.info("GET /api/budgets/{} - Fetching budget", budgetId);
         BudgetResponse response = budgetService.getBudgetById(budgetId);
+        if (isFinanceOfficer()) {
+            assertOwnership(response.getCreatedBy(), "budget");
+        }
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Get budgets for a project with pagination
-     * GET /api/budgets/projects/{projectId}?page=0&size=10&sortBy=createdAt&sortOrder=DESC
-     */
-    @Operation(summary = "List budgets for a project", description = "Returns paginated budgets linked to the specified project")
+    @Operation(summary = "List budgets for a project",
+               description = "**FINANCE_OFFICER**: returns only budgets for this project that were created by the calling user.\n\n" +
+                       "**ADMIN**: returns all budgets for this project.")
     @ApiResponse(responseCode = "200", description = "Paginated budget list")
     @GetMapping("/projects/{projectId}")
     public ResponseEntity<PagedResponse<BudgetResponse>> getBudgetsByProject(
@@ -85,35 +93,16 @@ public class BudgetController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortOrder) {
         log.info("GET /api/budgets/projects/{} - Fetching budgets", projectId);
-
         Pageable pageable = PaginationUtil.createPageable(page, size, sortBy, sortOrder);
-        PagedResponse<BudgetResponse> response = budgetService.getBudgetsByProjectId(projectId, pageable);
-        return ResponseEntity.ok(response);
+        if (isFinanceOfficer()) {
+            String currentUserId = resolveCurrentUserId();
+            return ResponseEntity.ok(budgetService.getBudgetsByProjectIdAndCreatedBy(projectId, currentUserId, pageable));
+        }
+        return ResponseEntity.ok(budgetService.getBudgetsByProjectId(projectId, pageable));
     }
 
-    /**
-     * Get budget revisions
-     * GET /api/budgets/{budgetId}/revisions?page=0&size=10
-     */
-    // @GetMapping("/{budgetId}/revisions")
-    // public ResponseEntity<PagedResponse<BudgetResponse>> getBudgetRevisions(
-    //         @PathVariable String budgetId,
-    //         @RequestParam(defaultValue = "0") Integer page,
-    //         @RequestParam(defaultValue = "10") Integer size,
-    //         @RequestParam(defaultValue = "createdAt") String sortBy,
-    //         @RequestParam(defaultValue = "DESC") String sortOrder) {
-    //     log.info("GET /api/budgets/{}/revisions - Fetching revisions", budgetId);
-
-    //     Pageable pageable = PaginationUtil.createPageable(page, size, sortBy, sortOrder);
-    //     PagedResponse<BudgetResponse> response = budgetService.getBudgetRevisions(budgetId, pageable);
-    //     return ResponseEntity.ok(response);
-    // }
-
-    /**
-     * Submit budget for approval
-     * POST /api/budgets/{budgetId}/submit
-     */
-    @Operation(summary = "Submit budget for approval", description = "Transitions budget from DRAFT to SUBMITTED status for PM review")
+    @Operation(summary = "Submit budget for approval",
+               description = "Transitions budget from DRAFT to SUBMITTED status for PM review")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Budget submitted successfully"),
         @ApiResponse(responseCode = "400", description = "Budget is not in DRAFT status"),
@@ -127,11 +116,9 @@ public class BudgetController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Approve/Reject budget (called by PM Service via Feign with PROJECT_MANAGER JWT)
-     * POST /api/budgets/{budgetId}/approval
-     */
-    @Operation(summary = "Approve or reject a budget", description = "Called by the PM Service (or ADMIN) to approve or reject a submitted budget. On approval, resource-allocation is notified via Feign.")
+    @Operation(summary = "Approve or reject a budget",
+               description = "Called by the PM Service (or ADMIN) to approve or reject a submitted budget. " +
+                       "On approval, resource-allocation is notified via Feign.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Approval decision recorded"),
         @ApiResponse(responseCode = "400", description = "Budget is not in SUBMITTED status"),
@@ -147,25 +134,9 @@ public class BudgetController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Create budget revision (when rejected)
-     * POST /api/budgets/{parentBudgetId}/revisions
-     */
-    // @PostMapping("/{parentBudgetId}/revisions")
-    // public ResponseEntity<BudgetResponse> createBudgetRevision(
-    //         @PathVariable String parentBudgetId,
-    //         @Valid @RequestBody BudgetCreateRequest request) {
-    //     log.info("POST /api/budgets/{}/revisions - Creating revision", parentBudgetId);
-    //     BudgetResponse response = budgetService.createBudgetRevision(parentBudgetId, request);
-    //     return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    // }
-
-    /**
-     * Get budgets by status with pagination
-     * GET /api/budgets/status/{status}?page=0&size=10
-     * Also called by PM (PROJECT_MANAGER role) to fetch SUBMITTED budgets for review.
-     */
-    @Operation(summary = "List budgets by status", description = "Returns paginated budgets filtered by status. PROJECT_MANAGER can call this to fetch SUBMITTED budgets for review.")
+    @Operation(summary = "List budgets by status",
+               description = "**FINANCE_OFFICER**: returns only their own budgets with the given status.\n\n" +
+                       "**ADMIN / PROJECT_MANAGER**: returns all budgets with the given status.")
     @ApiResponse(responseCode = "200", description = "Paginated budget list")
     @GetMapping("/status/{status}")
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE_OFFICER', 'PROJECT_MANAGER')")
@@ -176,39 +147,35 @@ public class BudgetController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortOrder) {
         log.info("GET /api/budgets/status/{} - Fetching budgets", status);
-
         Pageable pageable = PaginationUtil.createPageable(page, size, sortBy, sortOrder);
-        PagedResponse<BudgetResponse> response = budgetService.getBudgetsByStatus(status, pageable);
-        return ResponseEntity.ok(response);
+        if (isFinanceOfficer()) {
+            String currentUserId = resolveCurrentUserId();
+            return ResponseEntity.ok(budgetService.getBudgetsByStatusAndCreatedBy(status, currentUserId, pageable));
+        }
+        return ResponseEntity.ok(budgetService.getBudgetsByStatus(status, pageable));
     }
 
-    /**
-     * Get budgets by creator with pagination
-     * GET /api/budgets/users/{createdBy}?page=0&size=10
-     */
-    @Operation(summary = "List budgets created by a user")
+    @Operation(summary = "List budgets created by a user",
+               description = "**FINANCE_OFFICER**: returns 403 if the createdBy param does not match the caller's userId.\n\n" +
+                       "**ADMIN**: unrestricted.")
     @ApiResponse(responseCode = "200", description = "Paginated budget list")
     @GetMapping("/users/{createdBy}")
     public ResponseEntity<PagedResponse<BudgetResponse>> getBudgetsByCreatedBy(
-            @Parameter(description = "User ID (email)") @PathVariable String createdBy,
+            @Parameter(description = "User ID") @PathVariable String createdBy,
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortOrder) {
         log.info("GET /api/budgets/users/{} - Fetching budgets", createdBy);
-
+        if (isFinanceOfficer()) {
+            assertUserIdMatchesCaller(createdBy, "budgets");
+        }
         Pageable pageable = PaginationUtil.createPageable(page, size, sortBy, sortOrder);
-        PagedResponse<BudgetResponse> response = budgetService.getBudgetsByCreatedBy(createdBy, pageable);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(budgetService.getBudgetsByCreatedBy(createdBy, pageable));
     }
 
-    /**
-     * Update budget (PATCH)
-     * PATCH /api/budgets/{budgetId}
-     * Only allowed for DRAFT status budgets
-     * Can only update plannedAmount and budgetCategory
-     */
-    @Operation(summary = "Update a DRAFT budget", description = "Partial update — only plannedAmount and budgetCategory can be changed while the budget is in DRAFT status")
+    @Operation(summary = "Update a DRAFT budget",
+               description = "Partial update — only plannedAmount and budgetCategory can be changed while the budget is in DRAFT status")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Budget updated"),
         @ApiResponse(responseCode = "400", description = "Budget is not in DRAFT status"),
@@ -223,13 +190,8 @@ public class BudgetController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Delete budget
-     * DELETE /api/budgets/{budgetId}
-     * Only allowed for DRAFT status budgets
-     * Approved and Rejected budgets cannot be deleted
-     */
-    @Operation(summary = "Delete a DRAFT budget", description = "Soft-deletes the budget. Only DRAFT budgets can be deleted; APPROVED and REJECTED ones cannot.")
+    @Operation(summary = "Delete a DRAFT budget",
+               description = "Soft-deletes the budget. Only DRAFT budgets can be deleted; APPROVED and REJECTED ones cannot.")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Budget deleted"),
         @ApiResponse(responseCode = "400", description = "Budget is not in DRAFT status"),
@@ -243,29 +205,28 @@ public class BudgetController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Get utilization breakdown for a single budget
-     * GET /api/budgets/{budgetId}/utilization
-     * Returns: plannedAmount, actualAmount, remainingAmount, utilizationPercentage, overBudget flag
-     */
-    @Operation(summary = "Get utilization for a single budget", description = "Returns plannedAmount, actualAmount, remainingAmount, utilizationPercentage and overBudget flag for the given budget")
+    @Operation(summary = "Get utilization for a single budget",
+               description = "**FINANCE_OFFICER**: returns 403 if the budget was not created by the calling user.\n\n" +
+                       "**ADMIN**: unrestricted.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Utilization data returned"),
+        @ApiResponse(responseCode = "403", description = "Finance Officer accessing another user's budget"),
         @ApiResponse(responseCode = "404", description = "Budget not found")
     })
     @GetMapping("/{budgetId}/utilization")
     public ResponseEntity<BudgetUtilizationResponse> getBudgetUtilization(
             @Parameter(description = "Budget ID") @PathVariable String budgetId) {
         log.info("GET /api/budgets/{}/utilization - Fetching utilization", budgetId);
+        if (isFinanceOfficer()) {
+            BudgetResponse budget = budgetService.getBudgetById(budgetId);
+            assertOwnership(budget.getCreatedBy(), "budget");
+        }
         return ResponseEntity.ok(budgetService.getBudgetUtilization(budgetId));
     }
 
-    /**
-     * Get utilization summary for all budgets in a project
-     * GET /api/budgets/projects/{projectId}/utilization
-     * Returns: total planned, total actual, overall utilization %, per-budget breakdown
-     */
-    @Operation(summary = "Get utilization summary for a project", description = "Returns total planned, total actual, overall utilization % and per-budget breakdown for all budgets in the project")
+    @Operation(summary = "Get utilization summary for a project",
+               description = "Returns total planned, total actual, overall utilization % and per-budget breakdown " +
+                       "for all budgets in the project")
     @ApiResponse(responseCode = "200", description = "Project utilization summary returned")
     @GetMapping("/projects/{projectId}/utilization")
     @PreAuthorize("hasAnyRole('ADMIN', 'FINANCE_OFFICER', 'PROJECT_MANAGER')")
@@ -273,5 +234,45 @@ public class BudgetController {
             @Parameter(description = "Project ID") @PathVariable String projectId) {
         log.info("GET /api/budgets/projects/{}/utilization - Fetching project utilization", projectId);
         return ResponseEntity.ok(budgetService.getProjectBudgetUtilization(projectId));
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /** Returns the current user's userId from the Security context (resolved by IAM Feign in the JWT filter). */
+    private String resolveCurrentUserId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : "";
+    }
+
+    /** True when the current JWT holder has the FINANCE_OFFICER role. */
+    private boolean isFinanceOfficer() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_FINANCE_OFFICER"));
+    }
+
+    /**
+     * Throws 403 if the resource's createdBy does not match the authenticated caller's userId.
+     * Used to guard single-resource GET endpoints.
+     */
+    private void assertOwnership(String resourceCreatedBy, String resourceType) {
+        String currentUserId = resolveCurrentUserId();
+        if (!currentUserId.equals(resourceCreatedBy)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Access denied: this " + resourceType + " was not created by your account.");
+        }
+    }
+
+    /**
+     * Throws 403 if the given userId path param does not match the authenticated caller's userId.
+     * Prevents a FINANCE_OFFICER from querying another user's records via the /users/{createdBy} path.
+     */
+    private void assertUserIdMatchesCaller(String userId, String resourceType) {
+        String currentUserId = resolveCurrentUserId();
+        if (!currentUserId.equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Access denied: you can only view your own " + resourceType + ".");
+        }
     }
 }

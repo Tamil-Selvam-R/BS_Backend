@@ -54,9 +54,12 @@ public interface SiteOpsClient {
 
     /**
      * Outbound payload — minimal info siteops needs to confirm receipt later.
+     * projectId is required so SiteOps can scope the delivery to the correct
+     * project and restrict visibility to the assigned site engineer.
      */
     record DeliveryDispatchPayload(
             String deliveryId,
+            String projectId,    // ← project the delivery belongs to (from Contract)
             String contractId,
             String item,
             Integer quantity,

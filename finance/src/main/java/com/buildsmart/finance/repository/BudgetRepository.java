@@ -82,6 +82,24 @@ public interface BudgetRepository extends JpaRepository<Budget, String> {
     Page<Budget> findByCreatedBy(@Param("createdBy") String createdBy, Pageable pageable);
 
     /**
+     * Find budgets for a project created by a specific user (FINANCE_OFFICER scoping).
+     */
+    @Query("SELECT b FROM Budget b WHERE b.projectId = :projectId AND b.createdBy = :createdBy " +
+            "AND b.isDeleted = false")
+    Page<Budget> findByProjectIdAndCreatedBy(@Param("projectId") String projectId,
+                                              @Param("createdBy") String createdBy,
+                                              Pageable pageable);
+
+    /**
+     * Find budgets by status created by a specific user (FINANCE_OFFICER scoping).
+     */
+    @Query("SELECT b FROM Budget b WHERE b.status = :status AND b.createdBy = :createdBy " +
+            "AND b.isDeleted = false ORDER BY b.createdAt DESC")
+    Page<Budget> findByStatusAndCreatedBy(@Param("status") BudgetStatus status,
+                                          @Param("createdBy") String createdBy,
+                                          Pageable pageable);
+
+    /**
      * Find all active budgets for a project — used for utilization summary.
      */
     @Query("SELECT b FROM Budget b WHERE b.projectId = :projectId AND b.isDeleted = false ORDER BY b.createdAt ASC")

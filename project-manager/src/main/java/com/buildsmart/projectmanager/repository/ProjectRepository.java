@@ -16,6 +16,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     boolean existsByProjectId(String projectId);
     
     List<Project> findByStatus(ProjectStatus status);
+
+    List<Project> findByCreatedBy(String createdBy);
     
     @Query("SELECT MAX(CAST(SUBSTRING(p.projectId, 8) AS int)) FROM Project p WHERE p.projectId LIKE :prefix%")
     Integer findMaxProjectIdNumber(String prefix);

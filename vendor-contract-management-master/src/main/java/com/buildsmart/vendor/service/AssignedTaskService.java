@@ -27,4 +27,10 @@ public interface AssignedTaskService {
 
     /** Handle PM's approve/reject callback. APPROVED → COMPLETED, REJECTED → REJECTED + reason. */
     AssignedTaskResponse handleApprovalResult(String pmTaskId, String decision, String rejectionReason);
+
+    /** Returns all assigned tasks across all vendors — used by analytics service (no vendor filter). */
+    List<AssignedTaskResponse> getAllTasks();
+
+    /** Returns all assigned tasks with the given status — used by analytics service. */
+    List<AssignedTaskResponse> getAllTasksByStatus(AssignedTaskStatus status);
 }

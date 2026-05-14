@@ -137,6 +137,7 @@ public class IncidentServiceImpl implements IncidentService {
     public Page<IncidentResponse> search(Optional<String> projectId, Optional<IncidentStatus> status,
                                          Optional<IncidentSeverity> severity,
                                          Optional<LocalDate> dateFrom, Optional<LocalDate> dateTo,
+                                         Optional<String> reportedBy,
                                          Pageable pageable) {
         UserDto caller = resolveCurrentUser();
         if (!"ACTIVE".equals(caller.status()))
@@ -154,6 +155,8 @@ public class IncidentServiceImpl implements IncidentService {
             spec = spec.and((r, q, cb) -> cb.greaterThanOrEqualTo(r.get("date"), dateFrom.get()));
         if (dateTo.isPresent())
             spec = spec.and((r, q, cb) -> cb.lessThanOrEqualTo(r.get("date"), dateTo.get()));
+        if (reportedBy.isPresent())
+            spec = spec.and((r, q, cb) -> cb.equal(r.get("reportedBy"), reportedBy.get()));
 
         return incidentRepository.findAll(spec, pageable).map(IncidentMapper::toResponse);
     }

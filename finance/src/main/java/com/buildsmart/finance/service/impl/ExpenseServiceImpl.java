@@ -163,6 +163,28 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    public PagedResponse<ExpenseResponse> getExpensesByBudgetIdAndCreatedBy(String budgetId, String createdBy, Pageable pageable) {
+        log.info("Fetching expenses for budget: {} created by: {}", budgetId, createdBy);
+        Page<Expense> expenses = expenseRepository.findByBudgetIdAndCreatedBy(budgetId, createdBy, pageable);
+        return buildPagedResponse(expenses);
+    }
+
+    @Override
+    public PagedResponse<ExpenseResponse> getExpensesByProjectIdAndCreatedBy(String projectId, String createdBy, Pageable pageable) {
+        log.info("Fetching expenses for project: {} created by: {}", projectId, createdBy);
+        Page<Expense> expenses = expenseRepository.findByProjectIdAndCreatedBy(projectId, createdBy, pageable);
+        return buildPagedResponse(expenses);
+    }
+
+    @Override
+    public PagedResponse<ExpenseResponse> getExpensesByStatusAndCreatedBy(String status, String createdBy, Pageable pageable) {
+        log.info("Fetching expenses with status: {} created by: {}", status, createdBy);
+        ExpenseStatus expenseStatus = ExpenseStatus.valueOf(status.toUpperCase());
+        Page<Expense> expenses = expenseRepository.findByStatusAndCreatedBy(expenseStatus, createdBy, pageable);
+        return buildPagedResponse(expenses);
+    }
+
+    @Override
     public ExpenseResponse updateExpense(String expenseId, ExpenseUpdateRequest request) {
         log.info("Updating expense with ID: {}", expenseId);
 

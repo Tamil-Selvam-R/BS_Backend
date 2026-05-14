@@ -16,6 +16,7 @@ public interface IncidentService {
     Page<IncidentResponse> search(Optional<String> projectId, Optional<IncidentStatus> status,
                                   Optional<IncidentSeverity> severity,
                                   Optional<LocalDate> dateFrom, Optional<LocalDate> dateTo,
+                                  Optional<String> reportedBy,
                                   Pageable pageable);
     IncidentResponse updateStatus(String id, IncidentStatus newStatus);
     void delete(String id);

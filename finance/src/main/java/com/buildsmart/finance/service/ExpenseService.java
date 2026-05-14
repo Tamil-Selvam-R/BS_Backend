@@ -42,6 +42,21 @@ public interface ExpenseService {
     PagedResponse<ExpenseResponse> getExpensesByCreatedBy(String createdBy, Pageable pageable);
 
     /**
+     * Get expenses for a budget created by a specific user (FINANCE_OFFICER scoping).
+     */
+    PagedResponse<ExpenseResponse> getExpensesByBudgetIdAndCreatedBy(String budgetId, String createdBy, Pageable pageable);
+
+    /**
+     * Get expenses for a project created by a specific user (FINANCE_OFFICER scoping).
+     */
+    PagedResponse<ExpenseResponse> getExpensesByProjectIdAndCreatedBy(String projectId, String createdBy, Pageable pageable);
+
+    /**
+     * Get expenses by status created by a specific user (FINANCE_OFFICER scoping).
+     */
+    PagedResponse<ExpenseResponse> getExpensesByStatusAndCreatedBy(String status, String createdBy, Pageable pageable);
+
+    /**
      * Update expense — only allowed while status is APPROVED (not PAID)
      */
     ExpenseResponse updateExpense(String expenseId, ExpenseUpdateRequest request);

@@ -231,6 +231,35 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    public PagedResponse<PaymentResponse> getPaymentsByExpenseIdAndCreatedBy(String expenseId, String createdBy, Pageable pageable) {
+        log.info("Fetching payments for expense: {} created by: {}", expenseId, createdBy);
+        Page<Payment> payments = paymentRepository.findByExpenseIdAndCreatedBy(expenseId, createdBy, pageable);
+        return buildPagedResponse(payments);
+    }
+
+    @Override
+    public PagedResponse<PaymentResponse> getPaymentsByStatusAndCreatedBy(String status, String createdBy, Pageable pageable) {
+        log.info("Fetching payments with status: {} created by: {}", status, createdBy);
+        PaymentStatus paymentStatus = PaymentStatus.valueOf(status.toUpperCase());
+        Page<Payment> payments = paymentRepository.findByStatusAndCreatedBy(paymentStatus, createdBy, pageable);
+        return buildPagedResponse(payments);
+    }
+
+    @Override
+    public PagedResponse<PaymentResponse> getPendingPaymentsByCreatedBy(String createdBy, Pageable pageable) {
+        log.info("Fetching pending payments created by: {}", createdBy);
+        List<Payment> pendingPayments = paymentRepository.findPendingPaymentsByCreatedBy(createdBy);
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), pendingPayments.size());
+        List<Payment> pagedPayments = new ArrayList<>();
+        if (start < pendingPayments.size()) {
+            pagedPayments = pendingPayments.subList(start, end);
+        }
+        Page<Payment> page = new PageImpl<>(pagedPayments, pageable, pendingPayments.size());
+        return buildPagedResponse(page);
+    }
+
+    @Override
     public PagedResponse<PaymentResponse> getPendingPayments(Pageable pageable) {
         log.info("Fetching pending payments");
         List<Payment> pendingPayments = paymentRepository.findPendingPayments();

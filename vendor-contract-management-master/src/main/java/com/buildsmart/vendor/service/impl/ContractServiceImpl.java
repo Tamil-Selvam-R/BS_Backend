@@ -252,6 +252,27 @@ public class ContractServiceImpl implements ContractService {
         contractRepository.deleteById(id);
     }
 
+    @Override
+    public org.springframework.data.domain.Page<ContractResponse> getContractsByVendorIdPaginated(
+            String vendorId, org.springframework.data.domain.Pageable pageable) {
+        return contractRepository.findByVendorId(vendorId, pageable).map(this::toDTO);
+    }
+
+    @Override
+    public java.util.List<ContractResponse> getContractsByVendorIdAndStatus(
+            String vendorId, com.buildsmart.vendor.enums.ContractStatus status) {
+        return contractRepository.findByVendorIdAndStatus(vendorId, status)
+                .stream().map(this::toDTO).collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public java.util.List<String> getContractIdsByVendorId(String vendorId) {
+        return contractRepository.findByVendorId(vendorId)
+                .stream()
+                .map(com.buildsmart.vendor.entity.Contract::getContractId)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     private ContractResponse toDTO(Contract contract) {
         ContractResponse dto = new ContractResponse();
         dto.setContractId(contract.getContractId());

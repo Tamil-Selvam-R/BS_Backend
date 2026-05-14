@@ -15,4 +15,17 @@ public interface ContractService {
     ContractResponse createContract(ContractRequest request, String vendorId);
     ContractResponse updateContract(String id, ContractRequest request, String vendorId);
     void deleteContract(String id);
+
+    /** Paginated contracts for a specific vendor — used when VENDOR role calls GET /api/contracts. */
+    Page<ContractResponse> getContractsByVendorIdPaginated(String vendorId, Pageable pageable);
+
+    /** Vendor's contracts filtered by status — used for GET /api/contracts/status/{status}. */
+    List<ContractResponse> getContractsByVendorIdAndStatus(String vendorId, ContractStatus status);
+
+    /**
+     * Returns only the contractId strings for a vendor.
+     * Used by InvoiceController and DeliveryController to check resource ownership:
+     * if the resource's contractId is not in this list, the vendor gets 403.
+     */
+    List<String> getContractIdsByVendorId(String vendorId);
 }

@@ -14,6 +14,7 @@ public interface SafetyInspectionService {
     InspectionResponse get(String id);
     Page<InspectionResponse> search(Optional<String> projectId, Optional<InspectionStatus> status,
                                     Optional<LocalDate> dateFrom, Optional<LocalDate> dateTo,
+                                    Optional<String> officerId,
                                     Pageable pageable);
     InspectionResponse updateStatus(String id, InspectionStatus newStatus);
     void delete(String id);

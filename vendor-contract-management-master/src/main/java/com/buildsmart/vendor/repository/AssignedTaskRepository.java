@@ -24,4 +24,6 @@ public interface AssignedTaskRepository extends JpaRepository<AssignedTask, Stri
     Optional<AssignedTask> findByPmTaskId(String pmTaskId);
 
     AssignedTask findTopByOrderByIdDesc();
+
+    List<AssignedTask> findByStatusOrderBySyncedAtDesc(AssignedTaskStatus status);
 }

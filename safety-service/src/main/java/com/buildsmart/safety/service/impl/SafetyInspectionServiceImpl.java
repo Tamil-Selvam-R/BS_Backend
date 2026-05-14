@@ -180,6 +180,7 @@ public class SafetyInspectionServiceImpl implements SafetyInspectionService {
     @Transactional(readOnly = true)
     public Page<InspectionResponse> search(Optional<String> projectId, Optional<InspectionStatus> status,
                                            Optional<LocalDate> dateFrom, Optional<LocalDate> dateTo,
+                                           Optional<String> officerId,
                                            Pageable pageable) {
         UserDto caller = resolveCurrentUser();
         if (!"ACTIVE".equals(caller.status()))
@@ -195,6 +196,8 @@ public class SafetyInspectionServiceImpl implements SafetyInspectionService {
             spec = spec.and((r, q, cb) -> cb.greaterThanOrEqualTo(r.get("date"), dateFrom.get()));
         if (dateTo.isPresent())
             spec = spec.and((r, q, cb) -> cb.lessThanOrEqualTo(r.get("date"), dateTo.get()));
+        if (officerId.isPresent())
+            spec = spec.and((r, q, cb) -> cb.equal(r.get("officerId"), officerId.get()));
 
         return inspectionRepository.findAll(spec, pageable).map(InspectionMapper::toResponse);
     }
